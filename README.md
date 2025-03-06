@@ -17,7 +17,9 @@ This script automates the setup process after a fresh Debian 12 installation, wi
 - **Desktop Environment**: Installs XFCE desktop environment for a lightweight experience
 - **Remote Access**: Sets up XRDP for remote desktop connections
 - **Two-Factor Authentication**: Configures Google Authenticator for RDP (compatible with Aegis Authenticator)
-- **Verus Wallet**: Downloads and installs the latest Verus wallet software
+- **Verus Wallet**: 
+    - Automatically fetches and installs the latest Verus wallet release from GitHub
+    - Downloads the blockchain bootstrap to significantly reduce initial sync time
 - **Security Hardening**: Sets up firewall rules and basic security measures
 - **Automatic Configuration**: Creates proper configuration files for all components
 
@@ -48,6 +50,11 @@ sudo ./debian12_post_install_verus_wallet.sh
 3. Connect via RDP:
    - Use the IP address displayed at the end of the script
    - Login with your username, password, AND the 6-digit code from your authenticator app
+
+4. Using Verus Wallet:
+   - The wallet will start with a pre-synced blockchain (thanks to the bootstrap)
+   - You can start using the wallet immediately with minimal wait time
+   - The script installs the latest available version, always keeping you up-to-date
 
 ## Repository Structure
 

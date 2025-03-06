@@ -7,6 +7,16 @@
 # This script will:
 # 1. Update your Debian 12 system
 # 2. Install necessary dependencies and tools
+# 3. Create a sudo user for system management
+# 4. Set up desktop environment and RDP for remote access
+# 5. Setup 2FA authentication for RDP using Google Authenticator
+#    (compatible with Aegis Authenticator)
+# 6. Install the Verus wallet software
+# 7. Configure basic security settings
+#
+# IMPORTANT: Read through all comments to understand what each section does
+# 1. Update your Debian 12 system
+# 2. Install necessary dependencies and tools
 # 3. Set up desktop environment and RDP for remote access
 # 4. Setup 2FA authentication for RDP using Google Authenticator
 #    (compatible with Aegis Authenticator)
@@ -66,6 +76,7 @@ apt upgrade -y
 echo "• Installing essential utilities and tools..."
 apt install -y \
     curl \
+    jq \
     wget \
     git \
     vim \
@@ -86,6 +97,36 @@ apt install -y \
 echo "✓ System updated and essential tools installed."
 
 # ---------------------------------------------------------------------
+# STEP 2.5: Create Sudo User
+# ---------------------------------------------------------------------
+# Creates a new user with sudo privileges for system administration
+echo
+echo "STEP 2.5: Creating a sudo user..."
+
+# Prompt for username and password
+read -p "Enter username for new sudo user: " NEW_USERNAME
+
+# Check if the username already exists
+if id "$NEW_USERNAME" &>/dev/null; then
+    echo "User $NEW_USERNAME already exists. Skipping user creation."
+else
+    # Create the new user
+    echo "• Creating new user: $NEW_USERNAME"
+    adduser $NEW_USERNAME
+    
+    # Add the user to the sudo group
+    echo "• Adding $NEW_USERNAME to sudo group"
+    usermod -aG sudo $NEW_USERNAME
+    
+    echo "✓ User $NEW_USERNAME created with sudo privileges."
+fi
+
+# Create .komodo directory for the new user
+echo "• Setting up Verus directories for $NEW_USERNAME"
+mkdir -p /home/$NEW_USERNAME/.komodo/VRSC
+chown -R $NEW_USERNAME:$NEW_USERNAME /home/$NEW_USERNAME/.komodo
+
+echo "✓ Sudo user created and configured."
 # STEP 3: Set up Desktop Environment and RDP
 # ---------------------------------------------------------------------
 # Installs XFCE desktop and RDP server for remote connections
@@ -234,15 +275,17 @@ mkdir -p /opt/verus
 cd /opt/verus
 
 # Download the latest Verus binary release for Linux
-echo "• Downloading latest Verus wallet release..."
-wget https://github.com/VerusCoin/VerusCoin/releases/download/v0.9.5-2/Verus-CLI-Linux-v0.9.5-2-amd64.tar.gz
+echo "• Fetching information about latest Verus release..."
+LATEST_RELEASE=$(curl -s https://api.github.com/repos/VerusCoin/VerusCoin/releases/latest | grep "browser_download_url.*Verus-CLI-Linux.*amd64.tar.gz" | cut -d : -f 2,3 | tr -d \"\ )
+echo "• Latest release URL: $LATEST_RELEASE"
+wget $LATEST_RELEASE
 
 # Extract the downloaded archive
 echo "• Extracting Verus wallet files..."
-tar -xvf Verus-CLI-Linux-v0.9.5-2-amd64.tar.gz
+tar -xvf $(ls Verus-CLI-Linux*.tar.gz)
 
 # Remove the archive after extraction to save space
-rm Verus-CLI-Linux-v0.9.5-2-amd64.tar.gz
+rm Verus-CLI-Linux*.tar.gz
 
 # Create symbolic links to make Verus commands available system-wide
 echo "• Creating symbolic links for Verus commands..."
@@ -318,7 +361,86 @@ txindex=1                # Maintain a full transaction index (useful for blockch
 # You can add more configuration options here if needed
 CONFEOF
 
+# Copy the same configuration to the new user's directory
+if [[ -n "$NEW_USERNAME" ]]; then
+    cp /root/.komodo/VRSC/VRSC.conf /home/$NEW_USERNAME/.komodo/VRSC/
+    chown $NEW_USERNAME:$NEW_USERNAME /home/$NEW_USERNAME/.komodo/VRSC/VRSC.conf
+fi
+
 echo "✓ Verus configuration created."
+
+# ---------------------------------------------------------------------
+# STEP 8.5: Download Verus Bootstrap (to avoid full chain sync)
+# ---------------------------------------------------------------------
+echo
+echo "STEP 8.5: Downloading and installing Verus blockchain bootstrap..."
+
+# Create directory for bootstrap download
+echo "• Preparing for bootstrap download..."
+BOOTSTRAP_DIR=$(mktemp -d)
+cd "$BOOTSTRAP_DIR"
+
+# Download the bootstrap file
+echo "• Downloading Verus bootstrap..."
+wget https://bootstrap.verus.io/VRSC-bootstrap.tar.gz
+
+# Extract the bootstrap data
+echo "• Extracting bootstrap data (this may take some time)..."
+tar -xvzf VRSC-bootstrap.tar.gz
+
+# Install the bootstrap data for root user
+echo "• Installing bootstrap data for root user..."
+cp -r VRSC /root/.komodo/
+
+# If we have a new user, install for them too
+if [[ -n "$NEW_USERNAME" ]]; then
+    echo "• Installing bootstrap data for $NEW_USERNAME..."
+    cp -r VRSC /home/$NEW_USERNAME/.komodo/
+    chown -R $NEW_USERNAME:$NEW_USERNAME /home/$NEW_USERNAME/.komodo/VRSC
+fi
+
+# Clean up the temporary directory
+cd /
+rm -rf "$BOOTSTRAP_DIR"
+
+echo "✓ Verus bootstrap installed successfully."
+echo "• Initial blockchain sync will be much faster now!"
+
+# ---------------------------------------------------------------------
+# ---------------------------------------------------------------------
+echo
+echo "STEP 8.5: Downloading and installing Verus blockchain bootstrap..."
+
+# Create directory for bootstrap download
+echo "• Preparing for bootstrap download..."
+BOOTSTRAP_DIR=$(mktemp -d)
+cd "$BOOTSTRAP_DIR"
+
+# Download the bootstrap file
+echo "• Downloading Verus bootstrap..."
+wget https://bootstrap.verus.io/VRSC-bootstrap.tar.gz
+
+# Extract the bootstrap data
+echo "• Extracting bootstrap data (this may take some time)..."
+tar -xvzf VRSC-bootstrap.tar.gz
+
+# Install the bootstrap data for root user
+echo "• Installing bootstrap data for root user..."
+cp -r VRSC /root/.komodo/
+
+# If we have a new user, install for them too
+if [[ -n "$NEW_USERNAME" ]]; then
+    echo "• Installing bootstrap data for $NEW_USERNAME..."
+    cp -r VRSC /home/$NEW_USERNAME/.komodo/
+    chown -R $NEW_USERNAME:$NEW_USERNAME /home/$NEW_USERNAME/.komodo/VRSC
+fi
+
+# Clean up the temporary directory
+cd /
+rm -rf "$BOOTSTRAP_DIR"
+
+echo "✓ Verus bootstrap installed successfully."
+echo "• Initial blockchain sync will be much faster now!"
 echo "• Note: The 'rpcuser' and 'rpcpassword' are only for internal wallet communication."
 echo "  You don't need to remember these values for normal wallet usage."
 
@@ -348,20 +470,19 @@ echo
 echo "Verus wallet has been installed successfully."
 echo
 echo "TO FINISH SETUP:"
-echo "1. Create a regular user if not already done with:"
-echo "   adduser yourusername"
+echo "1. The sudo user $NEW_USERNAME has been created for you."
 echo
-echo "2. Run 'setup-2fa' as that user to configure 2FA for RDP"
+echo "2. Log in as $NEW_USERNAME and run "setup-2fa" to configure 2FA for RDP"
 echo "   (You'll need to scan a QR code with Aegis Authenticator)"
 echo
 echo "TO USE THE SYSTEM:"
 echo "1. Connect via RDP to this machine using the IP addresses shown above"
-echo "2. Log in with your username, password, AND 2FA code from Aegis"
-echo "3. Open a terminal and type 'verus' to start the wallet"
+echo "2. Log in with your username, password, AND the 6-digit code from your authenticator app"
+echo "3. Open a terminal and type "verus" to start the wallet"
 echo "4. The first start will take time as it synchronizes the blockchain"
 echo
 echo "ABOUT RPC CONFIGURATION:"
-echo "• The 'rpcuser' and 'rpcpassword' in the Verus configuration are"
+echo "• The "rpcuser" and "rpcpassword" in the Verus configuration are"
 echo "  only used for internal communication between wallet components"
 echo "• You do NOT need to use these for logging in or using the wallet"
 echo "• These settings are automatically configured for security"

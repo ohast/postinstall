@@ -1,0 +1,2 @@
+# postinstall
+postinstalls diffrent distros

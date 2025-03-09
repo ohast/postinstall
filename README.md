@@ -56,6 +56,74 @@ sudo ./debian12_post_install_verus_wallet.sh
    - You can start using the wallet immediately with minimal wait time
    - The script installs the latest available version, always keeping you up-to-date
 
+## Detailed Guide: Two-Factor Authentication (2FA) Setup
+
+The Debian 12 post-installation script includes robust Two-Factor Authentication for securing remote desktop (RDP) connections. This significantly enhances security by requiring something you know (password) and something you have (authenticator app).
+
+### 2FA Overview:
+
+- **Implementation**: Uses Google Authenticator PAM module (compatible with any TOTP app)
+- **Recommended App**: Aegis Authenticator (open-source, supports backups)
+- **Security Benefits**: Protects against password-based attacks, adds second layer of verification
+- **Setup Options**: Can be configured during installation or after setup
+
+### Setting Up 2FA During Installation:
+
+1. When running the installation script, you'll be prompted:
+   ```
+   Do you want to set up 2FA for user [username] now? (y/n)
+   ```
+
+2. If you select "y":
+   - The script will generate a QR code on screen
+   - You'll need to scan this QR code with your authenticator app (Aegis or Google Authenticator)
+   - Emergency scratch codes will be displayed - SAVE THESE in a secure location
+   - 2FA will be immediately active for RDP connections
+
+3. Configuration details:
+   - Time-based tokens (TOTP) with 30-second validity
+   - 3 login attempts before timeout
+   - 3 concurrent valid codes (helps with time drift)
+   - Rate limiting enabled for security
+
+### Setting Up 2FA After Installation:
+
+If you chose not to set up 2FA during installation or need to set it up for additional users:
+
+1. Log into the system (locally or via RDP without 2FA if not yet enabled)
+
+2. Run the setup command:
+   ```bash
+   sudo setup-2fa
+   ```
+   
+3. Follow the on-screen instructions:
+   - Press Enter to initiate the setup
+   - A QR code will be displayed on the terminal
+   - Scan the QR code with your authenticator app
+   - Save the emergency scratch codes securely
+   - 2FA will be activated immediately
+
+### Connecting with 2FA Enabled:
+
+1. Open your RDP client and connect to your server's IP address
+
+2. When prompted for login:
+   - Enter your username
+   - In the password field, enter: your password followed by the current 6-digit code from your authenticator app
+   
+3. Troubleshooting tips:
+   - Ensure your device's time is correctly synchronized
+   - If login fails, wait for a new code to generate in your app
+   - In emergency situations, you can use one of your scratch codes instead of the 6-digit code
+
+### Security Recommendations:
+
+- **Backup Recovery Codes**: Store the emergency scratch codes securely, separate from your authenticator device
+- **App Backup**: Use Aegis Authenticator's encrypted backup feature to prevent lockout if you lose your device
+- **Multiple Administrators**: Consider setting up 2FA for multiple admin users in case one loses access
+- **SSH Access**: Consider maintaining SSH access as a backup method with key-based authentication
+
 ## Repository Structure
 
 ```

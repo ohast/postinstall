@@ -16,7 +16,7 @@ This script automates the setup process after a fresh Debian 12 installation, wi
 - **System Update & Basic Tools**: Updates the system and installs essential tools and utilities
 - **Desktop Environment**: Installs XFCE desktop environment for a lightweight experience
 - **Remote Access**: Sets up XRDP for remote desktop connections
-- **Two-Factor Authentication**: Configures Google Authenticator for RDP (compatible with Aegis Authenticator)
+- **Two-Factor Authentication**: Optionally configures Google Authenticator for RDP during installation (compatible with Aegis Authenticator)
 - **Verus Wallet**: 
     - Automatically fetches and installs the latest Verus wallet release from GitHub
     - Downloads the blockchain bootstrap to significantly reduce initial sync time
@@ -40,7 +40,7 @@ sudo ./debian12_post_install_verus_wallet.sh
    sudo adduser yourusername
    ```
 
-2. Configure Two-Factor Authentication:
+2. Configure Two-Factor Authentication (if not done during installation):
    ```bash
    sudo setup-2fa
    ```

@@ -9,7 +9,7 @@
 # 2. Install necessary dependencies and tools
 # 3. Create a sudo user for system management
 # 4. Set up desktop environment and RDP for remote access
-# 5. Setup 2FA authentication for RDP using Google Authenticator
+# 5. Setup 2FA authentication for RDP using Google Authenticator (optional, can be done during installation)
 #    (compatible with Aegis Authenticator)
 # 6. Install the Verus wallet software
 # 7. Configure basic security settings
@@ -18,7 +18,7 @@
 # 1. Update your Debian 12 system
 # 2. Install necessary dependencies and tools
 # 3. Set up desktop environment and RDP for remote access
-# 4. Setup 2FA authentication for RDP using Google Authenticator
+# 4. Setup 2FA authentication for RDP using Google Authenticator (optional, can be done during installation)
 #    (compatible with Aegis Authenticator)
 # 5. Install the Verus wallet software
 # 6. Configure basic security settings
@@ -225,8 +225,30 @@ TWOFASCRIPT
 # Make the setup script executable
 chmod +x /usr/local/bin/setup-2fa
 
+# Prompt user if they want to set up 2FA now for the main user
+echo
+echo "Do you want to set up 2FA for user $NEW_USERNAME now? (y/n)"
+echo "This will generate a QR code that you need to scan with your authenticator app."
+read -p "> " SETUP_2FA_NOW
+
+if [[ "$SETUP_2FA_NOW" == "y" || "$SETUP_2FA_NOW" == "Y" ]]; then
+    echo "• Setting up 2FA for $NEW_USERNAME now..."
+    echo "• You will need to scan a QR code with your authenticator app."
+    echo "• IMPORTANT: Save the emergency scratch codes that will be displayed!"
+    echo
+    echo "Press Enter when you're ready to proceed..."
+    read
+    
+    # Run the 2FA setup as the user
+    su - $NEW_USERNAME -c "/usr/local/bin/setup-2fa"
+    
+    echo "✓ 2FA has been set up for $NEW_USERNAME."
+else
+    echo "• 2FA setup deferred. User $NEW_USERNAME can run 'setup-2fa' command later."
+fi
+
 echo "✓ Two-Factor Authentication setup complete."
-echo "• Users should run 'setup-2fa' to configure their authenticator app."
+echo "• Other users should run 'setup-2fa' to configure their authenticator app."
 
 # ---------------------------------------------------------------------
 # STEP 5: Install Development Tools and Dependencies for Verus
@@ -276,16 +298,16 @@ cd /opt/verus
 
 # Download the latest Verus binary release for Linux
 echo "• Fetching information about latest Verus release..."
-LATEST_RELEASE=$(curl -s https://api.github.com/repos/VerusCoin/VerusCoin/releases/latest | grep "browser_download_url.*Verus-CLI-Linux.*amd64.tar.gz" | cut -d : -f 2,3 | tr -d \"\ )
+LATEST_RELEASE=$(curl -s https://api.github.com/repos/VerusCoin/VerusCoin/releases/latest | grep "browser_download_url.*Verus-CLI-Linux.*x86_64.tgz" | cut -d : -f 2,3 | tr -d \"\ )
 echo "• Latest release URL: $LATEST_RELEASE"
 wget $LATEST_RELEASE
 
 # Extract the downloaded archive
 echo "• Extracting Verus wallet files..."
-tar -xvf $(ls Verus-CLI-Linux*.tar.gz)
+tar -xvf $(ls Verus-CLI-Linux*.tgz)
 
 # Remove the archive after extraction to save space
-rm Verus-CLI-Linux*.tar.gz
+rm Verus-CLI-Linux*.tgz
 
 # Create symbolic links to make Verus commands available system-wide
 echo "• Creating symbolic links for Verus commands..."
@@ -361,11 +383,6 @@ txindex=1                # Maintain a full transaction index (useful for blockch
 # You can add more configuration options here if needed
 CONFEOF
 
-# Copy the same configuration to the new user's directory
-if [[ -n "$NEW_USERNAME" ]]; then
-    cp /root/.komodo/VRSC/VRSC.conf /home/$NEW_USERNAME/.komodo/VRSC/
-    chown $NEW_USERNAME:$NEW_USERNAME /home/$NEW_USERNAME/.komodo/VRSC/VRSC.conf
-fi
 
 echo "✓ Verus configuration created."
 
@@ -390,49 +407,15 @@ tar -xvzf VRSC-bootstrap.tar.gz
 
 # Install the bootstrap data for root user
 echo "• Installing bootstrap data for root user..."
-cp -r VRSC /root/.komodo/
+mkdir -p /root/.komodo/VRSC/
+cp -r blocks chainstate /root/.komodo/VRSC/
 
 # If we have a new user, install for them too
 if [[ -n "$NEW_USERNAME" ]]; then
     echo "• Installing bootstrap data for $NEW_USERNAME..."
-    cp -r VRSC /home/$NEW_USERNAME/.komodo/
-    chown -R $NEW_USERNAME:$NEW_USERNAME /home/$NEW_USERNAME/.komodo/VRSC
-fi
-
-# Clean up the temporary directory
-cd /
-rm -rf "$BOOTSTRAP_DIR"
-
-echo "✓ Verus bootstrap installed successfully."
-echo "• Initial blockchain sync will be much faster now!"
-
-# ---------------------------------------------------------------------
-# ---------------------------------------------------------------------
-echo
-echo "STEP 8.5: Downloading and installing Verus blockchain bootstrap..."
-
-# Create directory for bootstrap download
-echo "• Preparing for bootstrap download..."
-BOOTSTRAP_DIR=$(mktemp -d)
-cd "$BOOTSTRAP_DIR"
-
-# Download the bootstrap file
-echo "• Downloading Verus bootstrap..."
-wget https://bootstrap.verus.io/VRSC-bootstrap.tar.gz
-
-# Extract the bootstrap data
-echo "• Extracting bootstrap data (this may take some time)..."
-tar -xvzf VRSC-bootstrap.tar.gz
-
-# Install the bootstrap data for root user
-echo "• Installing bootstrap data for root user..."
-cp -r VRSC /root/.komodo/
-
-# If we have a new user, install for them too
-if [[ -n "$NEW_USERNAME" ]]; then
-    echo "• Installing bootstrap data for $NEW_USERNAME..."
-    cp -r VRSC /home/$NEW_USERNAME/.komodo/
-    chown -R $NEW_USERNAME:$NEW_USERNAME /home/$NEW_USERNAME/.komodo/VRSC
+    mkdir -p /home/$NEW_USERNAME/.komodo/VRSC/
+    cp -r blocks chainstate /home/$NEW_USERNAME/.komodo/VRSC/
+    chown -R $NEW_USERNAME:$NEW_USERNAME /home/$NEW_USERNAME/.komodo
 fi
 
 # Clean up the temporary directory
@@ -443,13 +426,7 @@ echo "✓ Verus bootstrap installed successfully."
 echo "• Initial blockchain sync will be much faster now!"
 echo "• Note: The 'rpcuser' and 'rpcpassword' are only for internal wallet communication."
 echo "  You don't need to remember these values for normal wallet usage."
-
 # ---------------------------------------------------------------------
-# STEP 9: Cleanup and Final Steps
-# ---------------------------------------------------------------------
-echo
-echo "STEP 9: Performing final cleanup..."
-
 # Clean up package cache to free disk space
 echo "• Cleaning up package cache..."
 apt autoremove -y
